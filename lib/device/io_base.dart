@@ -11,9 +11,10 @@ class IoBase
   dynamic _value;
   DeviceBase? device;
 
-  void subscribe(NotifyState state, {dynamic getParam, dynamic commandParam, dynamic createParam, WidgetStateCreator? stateCreator}) 
+  void subscribe(NotifyState state,
+    {dynamic getParam, dynamic commandParam, dynamic createParam, WidgetStateCreator? stateCreator}) 
   {
-    _subscriptions[state] = _IoSubscription(this,getParam, commandParam, createParam, state, stateCreator);
+    _subscriptions[state] = _IoSubscription(this, getParam, commandParam, createParam, state, stateCreator);
   }
 
   void unsubscribe(NotifyState state) 
@@ -58,8 +59,7 @@ abstract class NotifyState<T extends StatefulWidget> extends State<T>
   dynamic ioValue;
   _IoSubscription? _subscription;
 
-
-  void notifyChange(DeviceBase ?device,  dynamic ioValue) 
+  void notifyChange(DeviceBase? device, dynamic ioValue) 
   {
     if (this.mounted) 
     {
@@ -69,9 +69,9 @@ abstract class NotifyState<T extends StatefulWidget> extends State<T>
     }
   }
 
-  dynamic getValue(DeviceBase device, String ioName)
+  dynamic getValue(DeviceBase device, String ioName) 
   {
-    return device.io[ioName]?.getValue(null);
+    return device.getIo(ioName)?.getValue(null);
   }
 
   @override

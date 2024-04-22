@@ -1,5 +1,7 @@
 // ignore_for_file: unnecessary_getters_setters
 
+import 'package:device_control/device/io_base.dart';
+
 class DeviceBase 
 {
   String? _name;
@@ -22,8 +24,6 @@ class DeviceBase
   set status(String status) => _status = status;
   set description(String description) => _description = description;
 
-  
-
   Map<String, dynamic> toMap() 
   {
     var map = <String, dynamic>{};
@@ -44,10 +44,10 @@ class DeviceBase
     this._description = map['description'];
   }
 
-  command(String io,dynamic commandParam, dynamic value)
-  {
-    
-  }
+  command(String io, dynamic commandParam, dynamic value) {}
 
-  
+  IoBase? getIo(String io) 
+  {
+    return IoBase();
+  }
 }
