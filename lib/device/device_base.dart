@@ -46,7 +46,7 @@ class DeviceBase
 
   command(String io, dynamic commandParam, dynamic value) {}
 
-  IoBase? getIo(String io) 
+  IoBase getIo(String io) 
   {
     return IoBase();
   }

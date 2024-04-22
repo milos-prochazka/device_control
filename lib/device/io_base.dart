@@ -11,13 +11,15 @@ class IoBase
   dynamic _value;
   DeviceBase? device;
 
-  void subscribe(NotifyState state,
+  _IoSubscription _subscribe(NotifyState state,
     {dynamic getParam, dynamic commandParam, dynamic createParam, WidgetStateCreator? stateCreator}) 
   {
-    _subscriptions[state] = _IoSubscription(this, getParam, commandParam, createParam, state, stateCreator);
+    final result = _IoSubscription(this, getParam, commandParam, createParam, state, stateCreator);
+    _subscriptions[state] = result;
+    return result;
   }
 
-  void unsubscribe(NotifyState state) 
+  void _unsubscribe(NotifyState state) 
   {
     _subscriptions.remove(state);
   }
@@ -51,7 +53,7 @@ class _IoSubscription
   _IoSubscription(this.io, this.getParam, this.commandParam, this.createParam, this.state, this.stateCreator);
 }
 
-typedef WidgetStateCreator = void Function(dynamic createParam);
+typedef WidgetStateCreator = dynamic Function(dynamic createParam);
 
 abstract class NotifyState<T extends StatefulWidget> extends State<T> 
 {
@@ -69,15 +71,34 @@ abstract class NotifyState<T extends StatefulWidget> extends State<T>
     }
   }
 
-  dynamic getValue(DeviceBase device, String ioName) 
+  dynamic getValue(DeviceBase device, String ioName, {dynamic getParam}) 
   {
-    return device.getIo(ioName)?.getValue(null);
+    return device.getIo(ioName).getValue(getParam ?? _subscription?.getParam);
+    // TODO: vytvoreni subscription, pokud treba
+  }
+
+  dynamic getVisualState(DeviceBase device, String ioName,
+    {WidgetStateCreator? stateCreator, dynamic createParam, dynamic getParam}) 
+  {
+    if (this._subscription == null) 
+    {
+      var io = device.getIo(ioName);
+      this._subscription =
+      io._subscribe(this, getParam: getParam, createParam: createParam, stateCreator: stateCreator);
+    }
+
+    if (this._subscription?.state == null && this._subscription?.stateCreator != null) 
+    {
+      this._subscription!.state = this._subscription?.stateCreator!(this._subscription?.createParam);
+    }
+
+    return this._subscription?.state;
   }
 
   @override
   void dispose() 
   {
     super.dispose();
-    _subscription?.io.unsubscribe(this);
+    _subscription?.io._unsubscribe(this);
   }
 }
