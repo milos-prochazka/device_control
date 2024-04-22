@@ -1,8 +1,13 @@
+import 'package:device_control/device/device_list.dart';
 import 'package:flutter/material.dart';
+
+import 'counter_device.dart';
+import 'device/io_base.dart';
 
 void main() 
 {
   runApp(const MyApp());
+  deviceList.addDevice(CounterDevice('Counter Device', 'counter-device'));
 }
 
 class MyApp extends StatelessWidget 
@@ -60,35 +65,13 @@ class MyHomePage extends StatefulWidget
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> 
+class _MyHomePageState extends NotifyState<MyHomePage> 
 {
-  int _counter = 0;
-
-  void _incrementCounter() 
-  {
-    setState
-    (
-      () 
-      {
-        // This call to setState tells the Flutter framework that something has
-        // changed in this State, which causes it to rerun the build method below
-        // so that the display can reflect the updated values. If we changed
-        // _counter without calling setState(), then the build method would not be
-        // called again, and so nothing would appear to happen.
-        _counter++;
-      }
-    );
-  }
-
   @override
   Widget build(BuildContext context) 
   {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    final device = getDeviceById('counter-device')!;
+
     return Scaffold
     (
       appBar: AppBar
@@ -129,7 +112,7 @@ class _MyHomePageState extends State<MyHomePage>
             ),
             Text
             (
-              '$_counter',
+              getValue(device, 'counter').toString(),
               style: Theme.of(context).textTheme.headlineMedium,
             ),
           ],
@@ -137,7 +120,7 @@ class _MyHomePageState extends State<MyHomePage>
       ),
       floatingActionButton: FloatingActionButton
       (
-        onPressed: _incrementCounter,
+        onPressed: () => device.command('increment'),
         tooltip: 'Increment',
         child: const Icon(Icons.add),
       ), // This trailing comma makes auto-formatting nicer for build methods.

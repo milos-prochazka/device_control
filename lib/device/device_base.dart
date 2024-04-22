@@ -10,6 +10,9 @@ class DeviceBase
   String? _status;
   String? _description;
 
+  Map<String, IoBase> io = {};
+  Map<String, IoGetter> getters = {};
+
   DeviceBase(this._name, this._id, this._type, this._status, this._description);
 
   String get name => _name!;
@@ -44,10 +47,30 @@ class DeviceBase
     this._description = map['description'];
   }
 
-  command(String io, dynamic commandParam, dynamic value) {}
-
-  IoBase getIo(String io) 
+  dynamic command(String cmd, {dynamic commandParam, dynamic value}) async 
   {
-    return IoBase();
+    return null;
+  }
+
+  IoBase getIo(String ioName) 
+  {
+    var result = getters[ioName] ?? io[ioName];
+    if (result == null) 
+    {
+      result = IoBase(device: this, name: ioName, deviceId: id);
+      io[ioName] = result;
+    }
+    return result;
+  }
+}
+
+class IoGetter extends IoBase 
+{
+  IoGetter({required DeviceBase super.device, required super.name, required super.deviceId});
+
+  @override
+  dynamic getValue(dynamic getParam) 
+  {
+    return null;
   }
 }
