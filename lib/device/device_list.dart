@@ -8,9 +8,21 @@ class DeviceList
 
   void addDevice(DeviceBase device) => _devices[device.id] = device;
 
-  void removeDevice(DeviceBase device) => _devices.remove(device.id);
+  void removeDevice(DeviceBase device) 
+  {
+    _devices.remove(device.id);
+    device.dispose();
+  }
 
-  void removeDeviceById(dynamic deviceId) => _devices.remove(deviceId);
+  void removeDeviceById(dynamic deviceId) 
+  {
+    final device = getDeviceById(deviceId);
+    _devices.remove(deviceId);
+    if (device != null) 
+    {
+      device.dispose();
+    }
+  }
 
   void getDeviceList() => _devices.values.toList();
 }

@@ -1,8 +1,8 @@
 import '/device/device_base.dart';
-import 'device/io_base.dart';
 
 class CounterDevice extends DeviceBase 
 {
+  bool _stopwachRunning = false;
   final IoBase counter;
 
   CounterDevice(String name, String id)
@@ -26,4 +26,16 @@ class CounterDevice extends DeviceBase
       break;
     }
   }
+
+  @override
+  void dispose() 
+  {
+    super.dispose();
+  }
+
+  @override
+  void onSubcribeFirst() {}
+
+  @override
+  void onUnsubscribeLast() {}
 }

@@ -2,7 +2,7 @@ import 'package:device_control/device/device_list.dart';
 import 'package:flutter/material.dart';
 
 import 'counter_device.dart';
-import 'device/io_base.dart';
+import 'device/device_base.dart';
 
 void main() 
 {
@@ -67,10 +67,15 @@ class MyHomePage extends StatefulWidget
 
 class _MyHomePageState extends NotifyState<MyHomePage> 
 {
+  _MyHomePageState() : super() 
+  {
+    print('_MyHomePageState constructor');
+  }
   @override
   Widget build(BuildContext context) 
   {
     final device = getDeviceById('counter-device')!;
+    device.dispose();
 
     return Scaffold
     (
@@ -115,6 +120,11 @@ class _MyHomePageState extends NotifyState<MyHomePage>
               getValue(device, 'counter').toString(),
               style: Theme.of(context).textTheme.headlineMedium,
             ),
+            ElevatedButton
+            (
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SecondPage())),
+              child: const Text('Go to Second Page'),
+            ),
           ],
         ),
       ),
@@ -124,6 +134,30 @@ class _MyHomePageState extends NotifyState<MyHomePage>
         tooltip: 'Increment',
         child: const Icon(Icons.add),
       ), // This trailing comma makes auto-formatting nicer for build methods.
+    );
+  }
+}
+
+class SecondPage extends StatelessWidget 
+{
+  const SecondPage({super.key});
+
+  @override
+  Widget build(BuildContext context) 
+  {
+    return Scaffold
+    (
+      appBar: AppBar
+      (
+        title: const Text('Second Page'),
+      ),
+      body: const Center
+      (
+        child: Text
+        (
+          'This is the second page',
+        ),
+      ),
     );
   }
 }
