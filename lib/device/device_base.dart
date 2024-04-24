@@ -53,9 +53,43 @@ class DeviceBase
     this._description = map['description'];
   }
 
-  dynamic command(String cmd, {dynamic commandParam, dynamic value}) async 
+  void setDeviceReference() 
+  {
+    for (final item in io.entries) 
+    {
+      item.value.device = this;
+    }
+
+    for (final item in getters.entries) 
+    {
+      item.value.device = this;
+    }
+  }
+
+  dynamic command(dynamic cmd, {dynamic commandParam, dynamic value}) async 
   {
     return null;
+  }
+
+  @mustCallSuper
+  void dispose() 
+  {
+    for (final item in io.entries) 
+    {
+      item.value._subscriptions.clear();
+    }
+
+    for (final item in getters.entries) 
+    {
+      item.value._subscriptions.clear();
+    }
+
+    _subscribers = 0;
+    _name = null;
+    _id = null;
+    _type = null;
+    _status = null;
+    _description = null;
   }
 
   IoBase getIo(String ioName) 
@@ -91,26 +125,6 @@ class DeviceBase
   void onSubcribeFirst() {}
 
   void onUnsubscribeLast() {}
-
-  void dispose() 
-  {
-    for (final item in io.entries) 
-    {
-      item.value._subscriptions.clear();
-    }
-
-    for (final item in getters.entries) 
-    {
-      item.value._subscriptions.clear();
-    }
-
-    _subscribers = 0;
-    _name = null;
-    _id = null;
-    _type = null;
-    _status = null;
-    _description = null;
-  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -118,7 +132,7 @@ class DeviceBase
 
 class IoGetter extends IoBase 
 {
-  IoGetter({required DeviceBase super.device, required super.name, required super.deviceId});
+  IoGetter({super.name, super.deviceId, super.device, super.value});
 
   @override
   dynamic getValue(dynamic getParam) 
@@ -155,11 +169,13 @@ class IoBase
     device!._unsubscribe();
   }
 
+  _IoSubscription? _getSubscription(NotifyState state) => _subscriptions[state];
+
   void notifySubscribers() 
   {
     for (var item in _subscriptions.entries) 
     {
-      item.key.notifyChange(this.device!, getValue(item.value.getParam));
+      item.key.notifyChange(this.device!, name);
     }
   }
 
@@ -180,16 +196,12 @@ class IoBase
 
 abstract class NotifyState<T extends StatefulWidget> extends State<T> 
 {
-  DeviceBase? device;
-  dynamic ioValue;
-  _IoSubscription? _subscription;
+  final subscribedIos = <String, IoBase>{};
 
-  void notifyChange(DeviceBase device, dynamic ioValue) 
+  void notifyChange(DeviceBase device, String ioName) 
   {
     if (this.mounted) 
     {
-      this.device = device;
-      this.ioValue = ioValue;
       setState(() {});
     }
   }
@@ -199,16 +211,27 @@ abstract class NotifyState<T extends StatefulWidget> extends State<T>
     return deviceList.getDeviceById(deviceId);
   }
 
+  IoBase _getIo(DeviceBase device, String ioName) 
+  {
+    var result = subscribedIos[ioName];
+    if (result == null) 
+    {
+      result = device.getIo(ioName);
+      subscribedIos[ioName] = result;
+    }
+    return result;
+  }
+
   dynamic getValue(DeviceBase device, String ioName, {dynamic getParam, bool subscribe = true}) 
   {
-    final io = device.getIo(ioName);
+    final io = _getIo(device, ioName);
 
-    if (subscribe && this._subscription == null) 
+    if (subscribe && io._getSubscription(this) == null) 
     {
-      this._subscription = io._subscribe(this, getParam: getParam);
+      io._subscribe(this, getParam: getParam);
     }
 
-    return io.getValue(getParam ?? _subscription?.getParam);
+    return io.getValue(getParam);
   }
 
   dynamic getValueById(dynamic deviceId, String ioName, {dynamic getParam, bool subscribe = true}) 
@@ -219,11 +242,11 @@ abstract class NotifyState<T extends StatefulWidget> extends State<T>
 
   dynamic getVisualState(DeviceBase device, String ioName, {WidgetStateCreator? stateCreator, dynamic createParam}) 
   {
-    final io = device.getIo(ioName);
-    if (this._subscription != null) 
-    {
-      final subscription = this._subscription!;
+    final io = _getIo(device, ioName);
+    var subscription = io._getSubscription(this);
 
+    if (subscription != null) 
+    {
       if (stateCreator != null) 
       {
         subscription.stateCreator = (createParam);
@@ -241,17 +264,15 @@ abstract class NotifyState<T extends StatefulWidget> extends State<T>
     } 
     else 
     {
-      final subscription = io._subscribe(this, createParam: createParam, stateCreator: stateCreator);
+      subscription = io._subscribe(this, createParam: createParam, stateCreator: stateCreator);
 
       if (stateCreator != null) 
       {
         subscription.state = stateCreator(createParam);
       }
-
-      this._subscription = subscription;
     }
 
-    return this._subscription?.state;
+    return subscription.state;
   }
 
   dynamic getVisualStateById(dynamic deviceId, String ioName, {WidgetStateCreator? stateCreator, dynamic createParam}) 
@@ -264,7 +285,10 @@ abstract class NotifyState<T extends StatefulWidget> extends State<T>
   void dispose() 
   {
     super.dispose();
-    _subscription?.io._unsubscribe(this);
+    for (final item in subscribedIos.entries) 
+    {
+      item.value._unsubscribe(this);
+    }
   }
 }
 

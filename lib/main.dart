@@ -75,7 +75,6 @@ class _MyHomePageState extends NotifyState<MyHomePage>
   Widget build(BuildContext context) 
   {
     final device = getDeviceById('counter-device')!;
-    device.dispose();
 
     return Scaffold
     (
@@ -120,6 +119,29 @@ class _MyHomePageState extends NotifyState<MyHomePage>
               getValue(device, 'counter').toString(),
               style: Theme.of(context).textTheme.headlineMedium,
             ),
+            Text
+            (
+              getValue(device, 'stopwatch'),
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            Row
+            (
+              mainAxisAlignment: MainAxisAlignment.center, children: 
+              [
+                ElevatedButton
+                (
+                  onPressed: () => device.command('start'),
+                  child: const Text('start'),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton
+                (
+                  onPressed: () => device.command('increment'),
+                  child: const Text('reset'),
+                ),
+              ]
+            ),
+            const SizedBox(height: 10),
             ElevatedButton
             (
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SecondPage())),
