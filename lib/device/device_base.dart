@@ -240,6 +240,21 @@ abstract class NotifyState<T extends StatefulWidget> extends State<T>
     return device != null ? getValue(device, ioName, getParam: getParam, subscribe: subscribe) : null;
   }
 
+  void setValue(DeviceBase device, String ioName, dynamic value, {dynamic setParam}) 
+  {
+    final io = _getIo(device, ioName);
+    io.value = value;
+  }
+
+  void setValueById(dynamic deviceId, String ioName, dynamic value, {dynamic setParam}) 
+  {
+    final device = getDeviceById(deviceId);
+    if (device != null) 
+    {
+      setValue(device, ioName, value, setParam: setParam);
+    }
+  }
+
   dynamic getVisualState(DeviceBase device, String ioName, {WidgetStateCreator? stateCreator, dynamic createParam}) 
   {
     final io = _getIo(device, ioName);

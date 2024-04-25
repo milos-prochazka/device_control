@@ -1,5 +1,7 @@
-import 'package:device_control/device/device_list.dart';
+import 'device/device_extensions.dart';
+import 'device/device_list.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'counter_device.dart';
 import 'device/device_base.dart';
@@ -122,7 +124,10 @@ class _MyHomePageState extends NotifyState<MyHomePage>
             Text
             (
               getValue(device, 'stopwatch'),
-              style: Theme.of(context).textTheme.headlineMedium,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith
+              (
+                fontFeatures: [const FontFeature.tabularFigures()],
+              ),
             ),
             Row
             (
@@ -133,7 +138,7 @@ class _MyHomePageState extends NotifyState<MyHomePage>
                   onPressed: () => device.command('start'),
                   child: const Text('start'),
                 ),
-                const SizedBox(width: 10),
+                space,
                 ElevatedButton
                 (
                   onPressed: () => device.command('increment'),
@@ -141,7 +146,9 @@ class _MyHomePageState extends NotifyState<MyHomePage>
                 ),
               ]
             ),
-            const SizedBox(height: 10),
+            space,
+            Row(mainAxisSize: MainAxisSize.min, children: [buildTimeField(context, device, 'seconds')]),
+            space,
             ElevatedButton
             (
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SecondPage())),
@@ -158,7 +165,31 @@ class _MyHomePageState extends NotifyState<MyHomePage>
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
+
+  Widget buildTimeField(BuildContext context, DeviceBase device, String ioName) 
+  {
+    final editingController = getVisualState(device, ioName, stateCreator: (createParam) => (TextEditingController()))
+    as TextEditingController;
+
+    editingController.setIfChanged(getValue(device, ioName).toString());
+
+    return IntrinsicWidth
+    (
+      stepWidth: 30,
+      child: TextField
+      (
+        maxLengthEnforcement: MaxLengthEnforcement.none, //
+        textAlign: TextAlign.center, //
+        inputFormatters: [LengthLimitingTextInputFormatter(2), FilteringTextInputFormatter.digitsOnly],
+        controller: editingController,
+        keyboardType: TextInputType.number,
+        onChanged: (value) => setValue(device, ioName, int.tryParse(value) ?? 0)
+      )
+    );
+  }
 }
+
+const space = SizedBox(height: 10, width: 10);
 
 class SecondPage extends StatelessWidget 
 {

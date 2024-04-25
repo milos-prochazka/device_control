@@ -10,14 +10,23 @@ class CounterDevice extends DeviceBase
   int _stopwatchStartTimestamp = 0;
   final IoBase counter;
   final IoGetter stopwatch;
+  final IoBase hours;
+  final IoBase minutes;
+  final IoBase seconds;
 
   CounterDevice(String name, String id)
   : counter = IoBase(name: 'counter', deviceId: id, value: 0),
   stopwatch = StopwatchGetter(name: 'stopwatch', deviceId: id),
+  hours = IoBase(name: 'hours', deviceId: id, value: 0),
+  minutes = IoBase(name: 'minutes', deviceId: id, value: 0),
+  seconds = IoBase(name: 'seconds', deviceId: id, value: 0),
   super(name, id, 'counter-device', '', 'A simple counter device') 
   {
     io['counter'] = counter;
     getters['stopwatch'] = stopwatch;
+    io['hours'] = hours;
+    io['minutes'] = minutes;
+    io['seconds'] = seconds;
 
     setDeviceReference();
   }
