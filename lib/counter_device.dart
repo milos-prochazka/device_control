@@ -5,11 +5,12 @@ import '/device/device_base.dart';
 class CounterDevice extends DeviceBase 
 {
   bool _stopwachRunning = false;
-  Timer? _stopwatchTimer = null;
+  Timer? _stopwatchTimer;
+  Timer? _timer;
   int _stopwatchTime = 0;
   int _stopwatchStartTimestamp = 0;
   final IoBase counter;
-  final IoGetter stopwatch;
+  final IoBase stopwatch;
   final IoBase hours;
   final IoBase minutes;
   final IoBase seconds;
@@ -17,18 +18,16 @@ class CounterDevice extends DeviceBase
   CounterDevice(String name, String id)
   : counter = IoBase(name: 'counter', deviceId: id, value: 0),
   stopwatch = StopwatchGetter(name: 'stopwatch', deviceId: id),
-  hours = IoBase(name: 'hours', deviceId: id, value: 0),
-  minutes = IoBase(name: 'minutes', deviceId: id, value: 0),
-  seconds = IoBase(name: 'seconds', deviceId: id, value: 0),
+  hours = TimerValue(name: 'hours', deviceId: id),
+  minutes = TimerValue(name: 'minutes', deviceId: id),
+  seconds = TimerValue
+  (
+    name: 'seconds',
+    deviceId: id,
+  ),
   super(name, id, 'counter-device', '', 'A simple counter device') 
   {
-    io['counter'] = counter;
-    getters['stopwatch'] = stopwatch;
-    io['hours'] = hours;
-    io['minutes'] = minutes;
-    io['seconds'] = seconds;
-
-    setDeviceReference();
+    mapIo(ioList: [counter, stopwatch, hours, minutes, seconds], getterList: [stopwatch]);
   }
 
   @override
@@ -48,12 +47,25 @@ class CounterDevice extends DeviceBase
         startStopwatch(true);
       }
       break;
+
+      case 'startTimer':
+      {
+        startTimer();
+      }
+      break;
+
+      case 'stopTimer':
+      {
+        stopTimer();
+      }
+      break;
     }
   }
 
   @override
   void dispose() 
   {
+    onUnsubscribeLast();
     super.dispose();
   }
 
@@ -67,6 +79,11 @@ class CounterDevice extends DeviceBase
     {
       _stopwatchTimer!.cancel();
       _stopwatchTimer = null;
+    }
+    if (_timer != null) 
+    {
+      _timer!.cancel();
+      _timer = null;
     }
   }
 
@@ -91,6 +108,38 @@ class CounterDevice extends DeviceBase
     _stopwatchTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) => timeUpdate());
   }
 
+  void startTimer() 
+  {
+    if (_timer != null) 
+    {
+      return;
+    }
+
+    DateTime start =
+    DateTime.now().add(Duration(hours: hours.getValue(), minutes: minutes.getValue(), seconds: seconds.getValue()));
+
+    _timer = Timer.periodic
+    (
+      const Duration(milliseconds: 250), (timer) 
+      {
+        final now = DateTime.now();
+        var diff = start.difference(now);
+
+        if (diff.inSeconds <= 0) 
+        {
+          timer.cancel();
+          _timer = null;
+          diff = const Duration();
+        }
+
+        hours.value = diff.inHours;
+        minutes.value = diff.inMinutes.remainder(60);
+        seconds.value = diff.inSeconds.remainder(60);
+        seconds.doEvent('change');
+      }
+    );
+  }
+
   void timeUpdate() 
   {
     if (_stopwachRunning) 
@@ -101,14 +150,26 @@ class CounterDevice extends DeviceBase
 
     stopwatch.notifySubscribers();
   }
+
+  stopTimer() 
+  {
+    if (_timer != null) 
+    {
+      _timer!.cancel();
+      _timer = null;
+      seconds.notifySubscribers();
+      minutes.notifySubscribers();
+      hours.notifySubscribers();
+    }
+  }
 }
 
-class StopwatchGetter extends IoGetter 
+class StopwatchGetter extends IoBase 
 {
   StopwatchGetter({super.name, super.deviceId, super.device});
 
   @override
-  dynamic getValue(dynamic getParam) 
+  dynamic getValue([dynamic getParam]) 
   {
     final device = this.device as CounterDevice;
     switch (getParam) 
@@ -128,6 +189,24 @@ class StopwatchGetter extends IoGetter
 
         return '$hour:${min.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}.${ms.toString().padLeft(3, '0')}';
       }
+    }
+  }
+}
+
+class TimerValue extends IoBase 
+{
+  TimerValue({super.name, super.deviceId, super.device}) : super(value: 0);
+
+  @override
+  dynamic getValue([dynamic getParam]) 
+  {
+    switch (getParam) 
+    {
+      case 'isRunning':
+      return (device as CounterDevice)._timer != null;
+
+      default:
+      return super.getValue(getParam);
     }
   }
 }

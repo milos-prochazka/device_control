@@ -2,6 +2,7 @@ import 'device_base.dart';
 
 class DeviceList 
 {
+  // ignore: prefer_final_fields
   Map<dynamic, DeviceBase> _devices = {};
 
   DeviceBase? getDeviceById(dynamic deviceId) => _devices[deviceId];
@@ -16,8 +17,7 @@ class DeviceList
 
   void removeDeviceById(dynamic deviceId) 
   {
-    final device = getDeviceById(deviceId);
-    _devices.remove(deviceId);
+    final device = _devices.remove(deviceId);
     if (device != null) 
     {
       device.dispose();

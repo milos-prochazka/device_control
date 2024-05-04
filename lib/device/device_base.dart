@@ -4,9 +4,16 @@ import 'package:flutter/widgets.dart';
 
 import 'device_list.dart';
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
+/// ### Kořenová třída pro všechna zařízení.
+/// Z této třídy dědí všechna zařízení.
+/// - Obsahuje základní informace o zařízení.
+/// - Obsahuje seznam I/O a Getters
+/// - Obsahuje metody pro práci s I/O a Getters
+/// - Obsahuje metody pro zpracování příkazů
+/// - Obsahuje metody pro práci s odběrateli
+/// - Obsahuje metody pro uvolnění prostředků
+/// - Obsahuje metody pro zpracování příkazů
+///
 class DeviceBase 
 {
   String? _name;
@@ -17,7 +24,7 @@ class DeviceBase
   int _subscribers = 0;
 
   Map<String, IoBase> io = {};
-  Map<String, IoGetter> getters = {};
+  Map<String, IoBase> getters = {};
 
   DeviceBase(this._name, this._id, this._type, this._status, this._description);
 
@@ -53,6 +60,9 @@ class DeviceBase
     this._description = map['description'];
   }
 
+  /// Nastaví referenci na zařízení pro všechny I/O a Getters
+  /// - Používá se při vytváření nového zařízení
+  /// - Musí se zavolat po vytvoření všech I/O a Getters v hlavičce konstruktoru (nelze u nich předávat this)
   void setDeviceReference() 
   {
     for (final item in io.entries) 
@@ -66,11 +76,58 @@ class DeviceBase
     }
   }
 
+  /// Mapuje I/O a Getters na zařízení
+  /// - Používá se v konstruktoru zařízení.
+  /// - Zároveň nastavuje referenci na zařízení pro I/O a Getters.
+  /// Parametry:
+  /// - ioList: seznam I/O, které se mapují na zařízení
+  /// - getterList: seznam Getters, které se mapují na zařízení
+  void mapIo({List<IoBase>? ioList, List<IoBase>? getterList}) 
+  {
+    if (ioList != null) 
+    {
+      for (final item in ioList) 
+      {
+        this.io[item.name] = item;
+        item.device = this;
+      }
+    }
+
+    if (getterList != null) 
+    {
+      for (final item in getterList) 
+      {
+        this.getters[item.name] = item;
+        item.device = this;
+      }
+    }
+  }
+
+  /// Zpracování příkazu
+  /// - Určeno k přepsání v potomcích
+  /// - Používá se pro zpracování příkazů z vizuálních prvků.
+  /// - Typy parametrů jsou volitelné podle implementace.
+  ///
+  /// Parametry:
+  /// - cmd: příkaz
+  /// - commandParam: parametr příkazu
+  /// - value: hodnota příkazu
+  /// - Vrací: výsledek zpracování příkazu
   dynamic command(dynamic cmd, {dynamic commandParam, dynamic value}) async 
   {
     return null;
   }
 
+  /// Uvolnění prostředků
+  /// - **Musí se zavolat v potomkovi (poud potomek přepíše dispose).**
+  /// - **Seznam zařízení musí korektně volat dispose, vždy když se zařízení odstraní.**
+  /// --------------------------------
+  /// - Volá se při odstranění zařízení
+  /// - Uvolní všechny I/O a Getters
+  /// - Uvolní všechny odběratele
+  /// - Nastaví všechny I/O a Getters na null
+  /// - Nastaví všechny proměnné na null
+  /// - Nastaví počet odběratelů na 0
   @mustCallSuper
   void dispose() 
   {
@@ -130,23 +187,9 @@ class DeviceBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class IoGetter extends IoBase 
-{
-  IoGetter({super.name, super.deviceId, super.device, super.value});
-
-  @override
-  dynamic getValue(dynamic getParam) 
-  {
-    return null;
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 class IoBase 
 {
-  final Map<NotifyState, _IoSubscription> _subscriptions = {};
+  final Map<IoNotifyState, _IoSubscription> _subscriptions = {};
   String name = '';
   String deviceId = '';
   dynamic _value;
@@ -154,22 +197,25 @@ class IoBase
 
   IoBase({this.name = '', this.deviceId = '', this.device, dynamic value}) : _value = value;
 
-  _IoSubscription _subscribe(NotifyState state,
-    {dynamic getParam, dynamic commandParam, dynamic createParam, WidgetStateCreator? stateCreator}) 
+  _IoSubscription _subscribe(IoNotifyState state) 
   {
-    final result = _IoSubscription(this, getParam, commandParam, createParam, state, stateCreator);
-    _subscriptions[state] = result;
-    device!._subscribe();
+    var result = _subscriptions[state];
+    if (result == null) 
+    {
+      result = _IoSubscription(this);
+      _subscriptions[state] = result;
+      device!._subscribe();
+    }
     return result;
   }
 
-  void _unsubscribe(NotifyState state) 
+  void _unsubscribe(IoNotifyState state) 
   {
     _subscriptions.remove(state);
     device!._unsubscribe();
   }
 
-  _IoSubscription? _getSubscription(NotifyState state) => _subscriptions[state];
+  _IoSubscription? _getSubscription(IoNotifyState state) => _subscriptions[state];
 
   void notifySubscribers() 
   {
@@ -179,9 +225,10 @@ class IoBase
     }
   }
 
-  dynamic getValue(dynamic getParam) => _value;
+  dynamic getValue([dynamic getParam]) => _value;
+  dynamic get value => getValue();
 
-  set value(dynamic value) 
+  setValue(dynamic value, [dynamic setParam]) 
   {
     if (this._value != value) 
     {
@@ -189,12 +236,22 @@ class IoBase
       notifySubscribers();
     }
   }
+
+  set value(dynamic value) => setValue(value);
+
+  void doEvent(dynamic event, [dynamic eventParam]) 
+  {
+    for (var item in _subscriptions.entries) 
+    {
+      item.value.eventCallback?.call(device!, name, event, eventParam);
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-abstract class NotifyState<T extends StatefulWidget> extends State<T> 
+abstract class IoNotifyState<T extends StatefulWidget> extends State<T> 
 {
   final subscribedIos = <String, IoBase>{};
 
@@ -228,7 +285,7 @@ abstract class NotifyState<T extends StatefulWidget> extends State<T>
 
     if (subscribe && io._getSubscription(this) == null) 
     {
-      io._subscribe(this, getParam: getParam);
+      io._subscribe(this);
     }
 
     return io.getValue(getParam);
@@ -262,24 +319,14 @@ abstract class NotifyState<T extends StatefulWidget> extends State<T>
 
     if (subscription != null) 
     {
-      if (stateCreator != null) 
+      if (subscription.state == null && stateCreator != null) 
       {
-        subscription.stateCreator = (createParam);
-      }
-
-      if (createParam != null) 
-      {
-        subscription.createParam = createParam;
-      }
-
-      if (subscription.state == null && subscription.stateCreator != null) 
-      {
-        subscription.state = subscription.stateCreator!(subscription.createParam);
+        subscription.state = stateCreator(createParam);
       }
     } 
     else 
     {
-      subscription = io._subscribe(this, createParam: createParam, stateCreator: stateCreator);
+      subscription = io._subscribe(this);
 
       if (stateCreator != null) 
       {
@@ -294,6 +341,22 @@ abstract class NotifyState<T extends StatefulWidget> extends State<T>
   {
     final device = getDeviceById(deviceId);
     return device != null ? getVisualState(device, ioName, stateCreator: stateCreator, createParam: createParam) : null;
+  }
+
+  void subscribeEvent(DeviceBase device, String ioName, EventCallback? eventCallback) 
+  {
+    final io = _getIo(device, ioName);
+    final subcription = io._subscribe(this);
+    subcription.eventCallback = eventCallback;
+  }
+
+  void subscribeEventById(dynamic deviceId, String ioName, EventCallback? eventCallback) 
+  {
+    final device = getDeviceById(deviceId);
+    if (device != null) 
+    {
+      subscribeEvent(device, ioName, eventCallback);
+    }
   }
 
   @override
@@ -313,16 +376,14 @@ abstract class NotifyState<T extends StatefulWidget> extends State<T>
 class _IoSubscription 
 {
   IoBase io;
-  dynamic getParam;
-  dynamic commandParam;
-  dynamic createParam;
   dynamic state;
-  WidgetStateCreator? stateCreator;
+  EventCallback? eventCallback;
 
-  _IoSubscription(this.io, this.getParam, this.commandParam, this.createParam, this.state, this.stateCreator);
+  _IoSubscription(this.io);
 }
 
 typedef WidgetStateCreator = dynamic Function(dynamic createParam);
+typedef EventCallback = void Function(DeviceBase device, String ioName, dynamic event, dynamic eventParam);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////

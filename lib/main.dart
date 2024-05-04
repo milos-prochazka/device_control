@@ -43,14 +43,49 @@ class MyApp extends StatelessWidget
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyAppPage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget 
+typedef ActivityListener = void Function(bool isActive);
+
+class MyAppPage extends StatefulWidget 
 {
-  const MyHomePage({super.key, required this.title});
+  const MyAppPage({super.key});
+
+  @override
+  State<MyAppPage> createState() => _MyAppPageState();
+}
+
+class _MyAppPageState extends State<MyAppPage> 
+{
+  bool _active = true;
+
+  @override
+  Widget build(BuildContext context) 
+  {
+    return _active
+    ? //
+    PageContent
+    (
+      title: 'Flutter Demo Home Page',
+      activityListener: (isActive) 
+      {
+        _active = isActive;
+        if (mounted) setState(() {});
+      },
+    )
+    : ////////////////////////////
+    const SizedBox();
+  }
+}
+
+class PageContent extends StatefulWidget 
+{
+  final ActivityListener activityListener;
+
+  const PageContent({super.key, required this.title, required this.activityListener});
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -64,19 +99,46 @@ class MyHomePage extends StatefulWidget
   final String title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<PageContent> createState() => _PageContentState();
 }
 
-class _MyHomePageState extends NotifyState<MyHomePage> 
+class _PageContentState extends IoNotifyState<PageContent> 
 {
-  _MyHomePageState() : super() 
+  bool _dotOn = true;
+
+  _PageContentState() : super() 
   {
     print('_MyHomePageState constructor');
   }
+
+  @override
+  void initState() 
+  {
+    super.initState();
+    final device = getDeviceById('counter-device')!;
+    subscribeEvent
+    (
+      device, 'seconds', (device, name, event, eventParam) 
+      {
+        _dotOn = !_dotOn;
+        if (mounted) setState(() {});
+      }
+    );
+  }
+
   @override
   Widget build(BuildContext context) 
   {
     final device = getDeviceById('counter-device')!;
+    final timerRunning = getValue(device, 'seconds', getParam: 'isRunning') as bool? ?? false;
+    if (!timerRunning) 
+    {
+      _dotOn = true;
+    }
+
+    final dotWidget = _dotOn
+    ? SizedBox(width: 30, child: Center(child: Text(' : ', style: Theme.of(context).textTheme.headlineMedium)))
+    : const SizedBox(width: 30);
 
     return Scaffold
     (
@@ -147,12 +209,46 @@ class _MyHomePageState extends NotifyState<MyHomePage>
               ]
             ),
             space,
-            Row(mainAxisSize: MainAxisSize.min, children: [buildTimeField(context, device, 'seconds')]),
+            Row
+            (
+              mainAxisSize: MainAxisSize.min, children: 
+              [
+                buildTimeField(context, device, 'hours'),
+                dotWidget,
+                buildTimeField(context, device, 'minutes'),
+                dotWidget,
+                buildTimeField(context, device, 'seconds'),
+              ]
+            ),
+            space,
+            buildStarStopTimerButton(context, device),
             space,
             ElevatedButton
             (
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SecondPage())),
               child: const Text('Go to Second Page'),
+            ),
+            space,
+            ElevatedButton
+            (
+              onPressed: () => setState
+              (
+                () async 
+                {
+                  try 
+                  {
+                    widget.activityListener.call(false);
+                    if (mounted) setState(() {});
+                    await Navigator.push(context, MaterialPageRoute(builder: (context) => const SecondPage()));
+                  } 
+                  finally 
+                  {
+                    widget.activityListener.call(true);
+                    if (mounted) setState(() {});
+                  }
+                }
+              ),
+              child: const Text('Go to Second Page and deactivate'),
             ),
           ],
         ),
@@ -166,6 +262,17 @@ class _MyHomePageState extends NotifyState<MyHomePage>
     );
   }
 
+  Widget buildStarStopTimerButton(BuildContext context, DeviceBase device) 
+  {
+    final isRunning = getValue(device, 'seconds', getParam: 'isRunning') as bool? ?? false;
+
+    return ElevatedButton
+    (
+      onPressed: () => device.command(isRunning ? 'stopTimer' : 'startTimer'),
+      child: Text(isRunning ? 'Stop' : 'Start'),
+    );
+  }
+
   Widget buildTimeField(BuildContext context, DeviceBase device, String ioName) 
   {
     final editingController = getVisualState(device, ioName, stateCreator: (createParam) => (TextEditingController()))
@@ -175,14 +282,21 @@ class _MyHomePageState extends NotifyState<MyHomePage>
 
     return IntrinsicWidth
     (
-      stepWidth: 30,
+      stepWidth: 50,
       child: TextField
       (
         maxLengthEnforcement: MaxLengthEnforcement.none, //
         textAlign: TextAlign.center, //
         inputFormatters: [LengthLimitingTextInputFormatter(2), FilteringTextInputFormatter.digitsOnly],
+        decoration:
+        const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.only(top: 0, bottom: 0)),
+        style: Theme.of(context)
+        .textTheme
+        .headlineMedium
+        ?.copyWith(fontFeatures: [const FontFeature.tabularFigures()]),
         controller: editingController,
         keyboardType: TextInputType.number,
+        readOnly: getValue(device, ioName, getParam: 'isRunning') as bool? ?? false,
         onChanged: (value) => setValue(device, ioName, int.tryParse(value) ?? 0)
       )
     );
